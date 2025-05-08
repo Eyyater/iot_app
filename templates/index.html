@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sensor Dashboard</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body class="bg-gradient-to-br from-[#19517a] via-#0e2f47 to-blue-800 min-h-screen flex items-center justify-center p-6">
+
+<div class="bg-white/70 backdrop-blur-md shadow-lg p-6 w-full max-w-6xl">
+    <h1 class="text-2xl font-bold text-center text-[#4499aa] mb-6">土豆质量检测数据</h1>
+
+    <div class="grid grid-cols-6 gap-4">
+
+      <!-- 左侧：温湿度仪表盘 -->
+      <div class="grid grid-cols-2 grid-rows-2 gap-6 col-span-2">
+        <!-- 温度 -->
+        <div class="flex flex-col items-center bg-[#4b5bd6]/20 p-4 max-h-64 backdrop-blur-lg">
+          <h2 class="text-lg font-semibold text-[#3e4bb0] mt-5 mb-5">Temperature</h2>
+          <div class="relative">
+            <canvas id="tempGauge" width="160"></canvas>
+            <div id="tempValue"
+              class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-x2 font-bold text-[#4b5bd6]">
+              -- °C
+            </div>
+          </div>
+        </div>
+
+        <!-- 湿度 -->
+        <div class="flex flex-col items-center bg-[#647a5a]/20 p-4 max-h-64 backdrop-blur-lg">
+          <h2 class="text-lg font-semibold text-[#647a5a] mt-5 mb-5">Humidity</h2>
+          <div class="relative">
+            <canvas id="humidityGauge" width="160"></canvas>
+            <div id="humidityValue"
+              class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-x2 font-bold text-[#647a5a]">
+              -- %
+            </div>
+          </div>
+        </div>
+
+        <!-- 表盘 3 -->
+        <div class="flex flex-col items-center bg-yellow-200/30 p-4 max-h-64 backdrop-blur-lg">
+          <h2 class="text-lg font-semibold text-yellow-600 mt-5 mb-5">干重百分比</h2>
+          <div class="relative">
+            <canvas id="gauge3" width="160"></canvas>
+            <div id="gauge3Value"
+              class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-x2 font-bold text-yellow-700">
+              -- %
+            </div>
+          </div>
+        </div>
+        
+        <!-- 表盘 4 -->
+        <div class="flex flex-col items-center bg-purple-200/30 p-4 max-h-64 backdrop-blur-lg">
+          <h2 class="text-lg font-semibold text-purple-600 mt-5 mb-5">淀粉百分比</h2>
+          <div class="relative">
+            <canvas id="gauge4" width="160"></canvas>
+            <div id="gauge4Value"
+              class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-x2 font-bold text-purple-700">
+              -- %
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右侧：VIS / NIR 柱状图 -->
+      <div class=" space-y-6 col-span-3">
+        <!-- VIS -->
+        <div class="bg-purple-200/30 p-4 shadow-inner backdrop-blur-lg">
+          <h2 class="text-lg font-semibold text-purple-600 text-center mb-2">VIS Spectrum</h2>
+          <canvas id="visChart" height="111"></canvas>
+        </div>
+
+        <!-- NIR -->
+        <div class="bg-pink-200/30 p-4 shadow-inner backdrop-blur-lg">
+          <h2 class="text-lg font-semibold text-pink-600 text-center mb-2">NIR Spectrum</h2>
+          <canvas id="nirChart" height="111"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let tempGauge = null;
+    let humidityGauge = null;
+    let visChart = null;
+    let nirChart = null;
+
+    function drawGauges(temp, humidity) {
+      document.getElementById("tempValue").textContent = `${temp} °C`;
+      document.getElementById("humidityValue").textContent = `${humidity} %`;
+
+      if (tempGauge) tempGauge.destroy();
+      if (humidityGauge) humidityGauge.destroy();
+
+      tempGauge = new Chart(document.getElementById("tempGauge"), {
+        type: "doughnut",
+        data: {
+          datasets: [{
+            data: [temp, 40 - temp],
+            backgroundColor: ["#3e4bb0", "#E5E7EB"],
+            borderWidth: 4, // 边框
+          }],
+        },
+        options: {
+          cutout: "75%", // 内径占75%（控制环形宽度）
+          // hover: { mode: null }, // 禁用悬停效果
+          plugins: {
+            legend: { display: false },
+            tooltip: { enabled: false } // 禁用提示框
+          }
+        }
+      });
+
+      humidityGauge = new Chart(document.getElementById("humidityGauge"), {
+        type: "doughnut",
+        data: {
+          datasets: [{
+            data: [humidity, 100 - humidity],
+            backgroundColor: ["#647a5a", "#E5E7EB"],
+            borderWidth: 4,
+          }],
+        },
+        options: {
+          cutout: "75%",
+          // hover: { mode: null },
+          plugins: {
+            legend: { display: false },
+            tooltip: { enabled: false }
+          }
+        }
+      });
+    }
+
+    function drawSpectrum(id, data, colors) {
+      const ctx = document.getElementById(id);
+      if (id === "visChart" && visChart) visChart.destroy();
+      if (id === "nirChart" && nirChart) nirChart.destroy();
+
+      const labels = id === "visChart"
+        ? ["Violet", "Blue", "Green", "Yellow", "Orange", "Red"]
+        : ["R", "S", "T", "U", "V", "W"];
+
+      const chart = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels, 
+          datasets: [{
+            data: data,
+            backgroundColor: colors,
+            // borderRadius: 6 // 柱子顶部的圆角半径（像素）
+            categoryPercentage: 0.8, // 每组柱子相对于分组宽度的百分比
+            barPercentage: 0.6       // 每根柱子在组内占的百分比
+          }]
+        },
+        options: {
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            y: { beginAtZero: true }
+          }
+        }
+      });
+
+      if (id === "visChart") visChart = chart;
+      if (id === "nirChart") nirChart = chart;
+    }
+
+    // 初始化
+    window.onload = () => { // TODO:数据接入
+      fetch('http://127.0.0.1:5000/api/data') // TODO:改回原端口
+        .then(res => res.json())
+        .then(data => {
+          // console.log("API返回的原始数据:", data); // 打印完整响应
+
+          let temp = data.temperature;
+          let humidity = data.humidity;
+          let visData = data.vis;
+          let nirData = data.nir;
+
+          console.log("提取的数据:", {
+            temperature: temp,
+            humidity: humidity,
+            visData: visData,
+            nirData: nirData
+          });
+
+          drawGauges(temp, humidity);
+
+          // TODO:柱形图颜色更改
+          drawSpectrum("visChart", visData, ["#A78BFa", "#8B5CF6", "#7C3AED", "#6D28D9", "#5B21B6", "#4C1D95"]);
+          drawSpectrum("nirChart", nirData, ["#F472B6", "#EC4899", "#DB2777", "#BE185D", "#9D174D", "#831843"]);
+        });
+    };
+  </script>
+</body>
+
+</html>
