@@ -31,40 +31,6 @@ def get_shadow(): # 获取最新数据
         print(f"Error getting shadow: {e}")
         return None
 
-def get_temperature_and_humidity(): # 获取温湿度数据
-    shadow = get_shadow()
-    if not shadow:
-        return {}
-    for service in shadow.get("shadow", []):
-        if service["service_id"] == "TRH":
-            props = service["reported"]["properties"]
-            return {
-                "temperature": props.get("temperature"),
-                "humidity": props.get("humidity"),
-                "event_time": service["reported"].get("event_time")
-            }
-    return {}
-
-def get_vis_data(): # 获取可见光数据
-    vis_values = {}
-    shadow = get_shadow()
-    if not shadow:
-        return {}
-    for service in shadow.get("shadow", []):
-        if service["service_id"] in ["VIS-1", "VIS-2"]:
-            vis_values[service["service_id"]] = service["reported"]["properties"]
-    return vis_values
-
-def get_nir_data(): # 获取近红外数据
-    nir_values = {}
-    shadow = get_shadow()
-    if not shadow:
-        return {}
-    for service in shadow.get("shadow", []):
-        if service["service_id"] in ["NIR-1", "NIR-2"]:
-            nir_values[service["service_id"]] = service["reported"]["properties"]
-    return nir_values
-
 def save_shadow_to_db(data): # 将数据存入数据库
     # 初始化空字典存数据
     record = {
@@ -73,6 +39,9 @@ def save_shadow_to_db(data): # 将数据存入数据库
         "humidity": None,
         "vis_b": None, "vis_g": None, "vis_o": None, "vis_r": None, "vis_v": None, "vis_y": None,
         "nir_r": None, "nir_s": None, "nir_t": None, "nir_u": None, "nir_v": None, "nir_w": None,
+        "DW": None, "SC": None,
+        "L": None,  "a": None, "b": None,
+        "LB": None, "BI": None,
     }
 
     # 遍历 shadow 数据
@@ -102,6 +71,19 @@ def save_shadow_to_db(data): # 将数据存入数据库
             record["nir_v"] = float(props.get("V", 0))
             record["nir_w"] = float(props.get("W", 0))
 
+        elif service_id == "DW&SC":
+            record["DW"] = float(props.get("DW", 0))
+            record["SC"] = float(props.get("SC", 0))
+
+        elif service_id == "Lab":
+            record["L"] = float(props.get("L", 0))
+            record["a"] = float(props.get("a", 0))
+            record["b"] = float(props.get("b", 0))
+
+        elif service_id == "LB&BI":
+            record["LB"] = float(props.get("LB", 0))
+            record["BI"] = float(props.get("BI", 0))
+
     # 存入数据库
     conn = sqlite3.connect('sensor_data.db')
     cursor = conn.cursor()
@@ -110,10 +92,12 @@ def save_shadow_to_db(data): # 将数据存入数据库
         INSERT INTO sensor_data (
             timestamp, temperature, humidity,
             vis_b, vis_g, vis_o, vis_r, vis_v, vis_y,
-            nir_r, nir_s, nir_t, nir_u, nir_v, nir_w
+            nir_r, nir_s, nir_t, nir_u, nir_v, nir_w,
+            DW, SC, "L*", "a*", "b*", "L/B", BI
         ) VALUES (?, ?, ?,
                   ?, ?, ?, ?, ?, ?,
-                  ?, ?, ?, ?, ?, ?)
+                  ?, ?, ?, ?, ?, ?,
+                  ?, ?, ?, ?, ?, ?, ?)
     ''', tuple(record.values()))
 
     conn.commit()
@@ -127,6 +111,5 @@ def get_db_connection(): # 读取数据库
 
 if __name__ == "__main__":
     print(get_shadow())
-    # print("Temp & Hum:", get_temperature_and_humidity())
-    # print("VIS:", get_vis_data())
-    # print("NIR:", get_nir_data())
+    data = get_shadow()
+    save_shadow_to_db(data)

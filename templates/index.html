@@ -22,7 +22,7 @@
   
       <!-- 左侧：温湿度仪表盘 -->
       <div class="grid grid-cols-2 gap-6 col-span-2 ">
-        <!-- 上方合并的温湿度模块：跨两列 -->
+        <!-- 上方合并的温湿度模块：跨两列 --> <!--TODO:添加Lab显示-->
         <div class="col-span-2 flex flex-col justify-center bg-[#999999]/20 p-4 backdrop-blur-lg  min-h-[233px]">
           <div class="flex flex-col items-center space-y-3">
             <div class="text-white text-xl">
@@ -36,7 +36,7 @@
       
         <!-- 左下：表盘 3 -->
         <div class="flex flex-col items-center bg-[#999999]/20 p-2 backdrop-blur-lg">
-          <h2 class="text-lg font-semibold text-white mt-5 mb-5">干重百分比</h2>
+          <h2 class="text-lg font-semibold text-white mt-5 mb-5">干物质含量</h2>
           <div class="relative">
             <canvas id="gauge3" width="170"></canvas>
             <div id="gauge3Value"
@@ -186,7 +186,7 @@
       if (id === "nirChart") nirChart = chart;
     }
 
-    function drawLineCharts() {
+    function drawLineCharts() { //TODO:更改标签与数据
       const sampleLabels = ["A", "B", "C", "D", "E", "F"];
       const sampleData1 = [12, 19, 13, 15, 12, 17];
       const sampleData2 = [22, 16, 18, 14, 19, 21];
@@ -276,8 +276,6 @@
           document.getElementById('tempText').textContent = `${temp} °C`;
           document.getElementById('humidityText').textContent = `${humidity} %`;
 
-
-          // TODO:柱形图颜色更改
           drawSpectrum("visChart", visData, ["#A78BFa", "#8B5CF6", "#7C3AED", "#6D28D9", "#5B21B6", "#6D28D9"]);
           drawSpectrum("nirChart", nirData, ["#F472B6", "#EC4899", "#DB2777", "#BE185D", "#9D174D", "#BE185D"]);
           drawLineCharts();

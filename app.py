@@ -68,7 +68,7 @@ def api_data():
         return jsonify({"error": "数据解析失败"}), 500
 
 @app.route("/api/history")
-def api_history(): # 打印数据库历史数据
+def api_history(): # 打印数据库历史数据（只含温湿度和时间戳）
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
