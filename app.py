@@ -12,7 +12,7 @@ CORS(app)  # 跨域支持
 def index():
     return render_template("index.html")
 
-@app.route("/api/data") 
+@app.route("/api/data") # 提取数据
 def api_data(): 
     """
     返回最新的传感器数据，结构为：
@@ -29,6 +29,13 @@ def api_data():
 
         temperature = None
         humidity = None
+        DW = None
+        SC = None
+        L = None
+        a = None
+        b = None
+        LB = None
+        BI = None
         vis_values = []
         nir_values = []
 
@@ -40,6 +47,19 @@ def api_data():
             if service_id == "TRH":
                 temperature = float(props.get("temperature", 0.0))
                 humidity = float(props.get("humidity", 0.0))
+            
+            elif service_id == "DW&SC":
+                DW = float(props.get("DW", 0.0))
+                SC = float(props.get("SC", 0.0))
+
+            elif service_id == "Lab":
+                L = float(props.get("L", 0.0))
+                a = float(props.get("a", 0.0))
+                b = float(props.get("b", 0.0))
+
+            elif service_id == "LB&BI":
+                LB = float(props.get("LB", 0.0))
+                BI = float(props.get("BI", 0.0))
 
             elif service_id.startswith("VIS"):
                 vis_keys = ["V", "B", "G", "Y", "O", "R"]
@@ -58,7 +78,14 @@ def api_data():
             "temperature": temperature,
             "humidity": humidity,
             "vis": vis_values,
-            "nir": nir_values
+            "nir": nir_values,
+            "DW": DW,
+            "SC": SC,
+            "L": L,
+            "a": a,
+            "b": b,
+            "LB": LB,
+            "BI": BI
         }
 
         return jsonify(result)
