@@ -31,28 +31,37 @@
             <div class="text-white text-xl">
               湿度: <span id="humidityText" class="font-bold text-[#647a5a]">-- %</span>
             </div>
+            <div class="text-white text-xl">
+              L : <span id="LText" class="font-bold text-[#4babd6]">--</span>
+            </div>
+            <div class="text-white text-xl">
+              a : <span id="aText" class="font-bold text-[#6ea7fa]">--</span>
+            </div>
+            <div class="text-white text-xl">
+              b : <span id="bText" class="font-bold text-[#f40aaa]">--</span>
+            </div>
           </div>
         </div>
       
-        <!-- 左下：表盘 3 -->
+        <!-- 左下：干物质含量 -->
         <div class="flex flex-col items-center bg-[#999999]/20 p-2 backdrop-blur-lg">
           <h2 class="text-lg font-semibold text-white mt-5 mb-5">干物质含量</h2>
           <div class="relative">
-            <canvas id="gauge3" width="170"></canvas>
-            <div id="gauge3Value"
-              class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-x2 font-bold text-yellow-700">
+            <canvas id="DWGauge" width="170"></canvas>
+            <div id="DWValue"
+              class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-xl font-bold text-[#F77F7D]">
               -- %
             </div>
           </div>
         </div>
       
-        <!-- 右下：表盘 4 -->
+        <!-- 右下：淀粉百分比 -->
         <div class="flex flex-col items-center bg-[#999999]/20 p-2 backdrop-blur-lg">
           <h2 class="text-lg font-semibold text-white mt-5 mb-5">淀粉百分比</h2>
           <div class="relative">
-            <canvas id="gauge4" width="170"></canvas>
-            <div id="gauge4Value"
-              class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-x2 font-bold text-purple-700">
+            <canvas id="SCGauge" width="170"></canvas>
+            <div id="SCValue"
+              class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-xl font-bold text-[#AAE7EB]">
               -- %
             </div>
           </div>
@@ -97,24 +106,21 @@
     let visChart = null;
     let nirChart = null;
 
-    function drawGauges(temp, humidity) {
-      document.getElementById("tempValue").textContent = `${temp} °C`;
-      document.getElementById("humidityValue").textContent = `${humidity} %`;
+    function drawGauges(DW, SC) {
+      document.getElementById("DWValue").textContent = `${DW} %`;
+      document.getElementById("SCValue").textContent = `${SC} %`;
 
-      if (tempGauge) tempGauge.destroy();
-      if (humidityGauge) humidityGauge.destroy();
-
-      tempGauge = new Chart(document.getElementById("tempGauge"), {
+      DWGauge = new Chart(document.getElementById("DWGauge"), {
         type: "doughnut",
         data: {
           datasets: [{
-            data: [temp, 40 - temp],
-            backgroundColor: ["grey", "#E5E7EB"],
-            borderWidth: 4, // 边框
+            data: [DW, 100 - DW],
+            backgroundColor: ["#F77F7D", "grey"],
+            borderWidth: 1, // 边框
           }],
         },
         options: {
-          cutout: "75%", // 内径占75%（控制环形宽度）
+          cutout: "80%", // 内径占80%（控制环形宽度）
           // hover: { mode: null }, // 禁用悬停效果
           plugins: {
             legend: { display: false },
@@ -123,17 +129,17 @@
         }
       });
 
-      humidityGauge = new Chart(document.getElementById("humidityGauge"), {
+      SCGauge = new Chart(document.getElementById("SCGauge"), {
         type: "doughnut",
         data: {
           datasets: [{
-            data: [humidity, 100 - humidity],
-            backgroundColor: ["grey", "#E5E7EB"],
-            borderWidth: 4,
+            data: [SC, 100 - SC],
+            backgroundColor: ["#AAE7EB", "grey"],
+            borderWidth: 1,
           }],
         },
         options: {
-          cutout: "75%",
+          cutout: "80%",
           // hover: { mode: null },
           plugins: {
             legend: { display: false },
@@ -262,6 +268,13 @@
 
           let temp = data.temperature;
           let humidity = data.humidity;
+          let L = data.L;
+          let a = data.a;
+          let b = data.b;
+          let DW = data.DW;
+          let SC = data.SC;
+          let LB = data.LB;
+          let BI = data.BI;
           let visData = data.vis;
           let nirData = data.nir;
 
@@ -269,12 +282,22 @@
             temperature: temp,
             humidity: humidity,
             visData: visData,
-            nirData: nirData
+            nirData: nirData,
+            L: L,
+            a: a,
+            b: b,
+            DW: DW,
+            SC: SC,
+            LB: LB,
+            BI: BI
           });
 
-          // drawGauges(temp, humidity);
+          drawGauges(DW, SC);
           document.getElementById('tempText').textContent = `${temp} °C`;
           document.getElementById('humidityText').textContent = `${humidity} %`;
+          document.getElementById('LText').textContent = `${L}`;
+          document.getElementById('aText').textContent = `${a}`;
+          document.getElementById('bText').textContent = `${b}`;
 
           drawSpectrum("visChart", visData, ["#A78BFa", "#8B5CF6", "#7C3AED", "#6D28D9", "#5B21B6", "#6D28D9"]);
           drawSpectrum("nirChart", nirData, ["#F472B6", "#EC4899", "#DB2777", "#BE185D", "#9D174D", "#BE185D"]);
