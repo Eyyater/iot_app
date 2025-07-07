@@ -20,7 +20,14 @@ def api_data():
         "temperature": float,
         "humidity": float,
         "vis": List[float],
-        "nir": List[float]
+        "nir": List[float],
+        "DW": float,
+        "SC": float,
+        "L": float,
+        "a": float,
+        "b": float,
+        "LB": float,
+        "BI": float
     }
     """
     try:
@@ -95,27 +102,29 @@ def api_data():
         return jsonify({"error": "数据解析失败"}), 500
 
 @app.route("/api/history")
-def api_history(): # 打印数据库历史数据（只含温湿度和时间戳）
+def api_history():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # 获取当前时间前 1 小时的数据
-        one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+        # 获取时间最近的 5 条记录（按 timestamp 降序）
         cursor.execute("""
-            SELECT timestamp, temperature, humidity
+            SELECT timestamp, "L/B", BI
             FROM sensor_data
-            WHERE timestamp >= ?
-            ORDER BY timestamp ASC
-        """, (one_hour_ago.isoformat(),))
+            ORDER BY timestamp DESC
+            LIMIT 5
+        """)
         rows = cursor.fetchall()
+
+        # 反转数据（让最早的在前）
+        rows = list(reversed(rows))
 
         history = []
         for row in rows:
             history.append({
                 "timestamp": row["timestamp"],
-                "temperature": row["temperature"],
-                "humidity": row["humidity"]
+                "LB": row["L/B"],
+                "BI": row["BI"]
             })
 
         conn.close()
@@ -124,6 +133,7 @@ def api_history(): # 打印数据库历史数据（只含温湿度和时间戳�
     except Exception as e:
         print("获取历史数据失败：", e)
         return jsonify({"error": "无法获取历史数据"}), 500
+
 
 last_timestamp = None
 

@@ -109,7 +109,33 @@ def get_db_connection(): # 读取数据库
     conn.row_factory = sqlite3.Row
     return conn
 
+def print_all_data():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 获取所有表名（可选）
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    tables = cursor.fetchall()
+    print("数据库中的表:", [table['name'] for table in tables])
+    
+    table_name = "sensor_data"
+    cursor.execute(f"SELECT * FROM {table_name}")
+    rows = cursor.fetchall()
+    
+    if not rows:
+        print(f"表 {table_name} 中没有数据")
+    else:
+        print(f"\n{table_name} 表中的数据:")
+        # 打印列名
+        print(" | ".join(rows[0].keys()))
+        # 打印数据
+        for row in rows:
+            print(" | ".join(str(value) for value in row))
+    
+    conn.close()
+
 if __name__ == "__main__":
     print(get_shadow())
-    data = get_shadow()
-    save_shadow_to_db(data)
+    # data = get_shadow()
+    # save_shadow_to_db(data)
+    print_all_data()
