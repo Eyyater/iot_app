@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sensor Dashboard</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body class="bg-gradient-to-br from-[#C8800B] to-[#994D08] min-h-screen flex items-center justify-center p-6">
+
+    <div class="backdrop-blur-md shadow-lg p-1 w-full">
+        <div class="grid grid-cols-6 gap-4">
+
+            <!-- 左侧：温湿度仪表盘 -->
+            <div class="grid grid-cols-2 gap-6 col-span-2 ">
+                <!-- 上方合并的温湿度模块：跨两列 -->
+                <div
+                    class="col-span-2 flex flex-col justify-center bg-purple-200/30 p-4 backdrop-blur-lg  min-h-[233px]">
+                    <div class="flex flex-col items-center space-y-3">
+                        <div class="text-[#f8df9c] text-xl">
+                            温度: <span id="tempText" class="font-bold text-[#8b4303]">-- °C</span>
+                        </div>
+                        <div class="text-[#f8df9c] text-xl">
+                            湿度: <span id="humidityText" class="font-bold text-[#a1752d]">-- %</span>
+                        </div>
+                        <div class="text-[#f8df9c] text-xl">
+                            L : <span id="LText" class="font-bold text-[#d0d13d]">--</span>
+                        </div>
+                        <div class="text-[#f8df9c] text-xl">
+                            a : <span id="aText" class="font-bold text-[#874e01]">--</span>
+                        </div>
+                        <div class="text-[#f8df9c] text-xl">
+                            b : <span id="bText" class="font-bold text-[#aa751c]">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 左下：干物质含量 -->
+                <div class="flex flex-col items-center bg-purple-200/30 p-2 backdrop-blur-lg">
+                    <h2 class="text-lg font-semibold text-[#f8df9c] mt-5 mb-5">干物质含量</h2>
+                    <div class="relative">
+                        <canvas id="DWGauge" width="170"></canvas>
+                        <div id="DWValue"
+                            class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-xl font-bold text-[#f8df9c]">
+                            -- %
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右下：淀粉百分比 -->
+                <div class="flex flex-col items-center bg-purple-200/30 p-2 backdrop-blur-lg">
+                    <h2 class="text-lg font-semibold text-[#f8df9c] mt-5 mb-5">淀粉百分比</h2>
+                    <div class="relative">
+                        <canvas id="SCGauge" width="170"></canvas>
+                        <div id="SCValue"
+                            class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-xl font-bold text-[#f8df9c]">
+                            -- %
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 中间：折线图 -->
+            <div class="space-y-6 col-span-2">
+                <!-- LB -->
+                <div class="bg-purple-200/30 p-4 shadow-inner backdrop-blur-lg">
+                    <h2 class="text-lg font-semibold text-[#fbda4b] text-center mb-2">L/b</h2>
+                    <canvas id="LBChart" height="170"></canvas>
+                </div>
+            
+                <!-- BI -->
+                <div class="bg-purple-200/30 p-4 shadow-inner backdrop-blur-lg">
+                    <h2 class="text-lg font-semibold text-[#fbda4b] text-center mb-2">BI</h2>
+                    <canvas id="BIChart" height="170"></canvas>
+                </div>
+            </div>
+
+            <!-- 右侧：VIS / NIR 柱状图 -->
+            <div class=" space-y-6 col-span-2">
+                <!-- VIS -->
+                <div class="bg-purple-200/30 p-4 shadow-inner backdrop-blur-lg">
+                    <h2 class="text-lg font-semibold text-[#773d03] text-center mb-2">VIS Spectrum</h2>
+                    <canvas id="visChart" height="170"></canvas>
+                </div>
+                <!-- NIR -->
+                <div class="bg-pink-200/30 p-4 shadow-inner backdrop-blur-lg">
+                    <h2 class="text-lg font-semibold text-[#773d03] text-center mb-2">NIR Spectrum</h2>
+                    <canvas id="nirChart" height="170"></canvas>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
+
+    <script>
+        let tempGauge = null;
+        let humidityGauge = null;
+        let visChart = null;
+        let nirChart = null;
+        let LBChart = null;
+        let BIChart = null;
+
+        function drawGauges(DW, SC) {
+            document.getElementById("DWValue").textContent = `${DW} %`;
+            document.getElementById("SCValue").textContent = `${SC} %`;
+
+            DWGauge = new Chart(document.getElementById("DWGauge"), {
+                type: "doughnut",
+                data: {
+                    datasets: [{
+                        data: [DW, 100 - DW],
+                        backgroundColor: ["#f8df9c", "grey"],
+                        borderWidth: 0, // 边框
+                    }],
+                },
+                options: {
+                    cutout: "80%", // 内径占80%（控制环形宽度）
+                    // hover: { mode: null }, // 禁用悬停效果
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false } // 禁用提示框
+                    }
+                }
+            });
+
+            SCGauge = new Chart(document.getElementById("SCGauge"), {
+                type: "doughnut",
+                data: {
+                    datasets: [{
+                        data: [SC, 100 - SC],
+                        backgroundColor: ["#f8df9c", "grey"],
+                        borderWidth: 0,
+                    }],
+                },
+                options: {
+                    cutout: "80%",
+                    // hover: { mode: null },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    }
+                }
+            });
+        }
+
+        function drawSpectrum(id, data, colors) {
+            const ctx = document.getElementById(id);
+            if (id === "visChart" && visChart) visChart.destroy();
+            if (id === "nirChart" && nirChart) nirChart.destroy();
+
+            const labels = id === "visChart"
+                ? ["Violet", "Blue", "Green", "Yellow", "Orange", "Red"]
+                : ["R", "S", "T", "U", "V", "W"];
+
+            const chart = new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors,
+                        // borderRadius: 6 // 柱子顶部的圆角半径（像素）
+                        categoryPercentage: 0.8, // 每组柱子相对于分组宽度的百分比
+                        barPercentage: 0.6       // 每根柱子在组内占的百分比
+                    }]
+                },
+                options: {
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: "#f8df9c" },         // Y轴刻度文字颜色
+                            grid: { color: "rgba(255, 255, 255, .5)" } // Y轴网格线颜色
+                        },
+                        x: {
+                            ticks: { color: "#f8df9c" },         // X轴刻度文字颜色
+                            grid: { color: "rgba(255, 255, 255, .5)" } // X轴网格线颜色
+                        }
+                    }
+                }
+            });
+
+            if (id === "visChart") visChart = chart;
+            if (id === "nirChart") nirChart = chart;
+        }
+
+        function drawLineCharts(timestamps, LB, BI) {
+            const lineColor = "#f0c353";
+
+            new Chart(document.getElementById("LBChart"), {
+                type: "line",
+                data: {
+                    labels: timestamps,
+                    datasets: [{
+                        label: "L/B",
+                        data: LB,
+                        borderColor: lineColor,
+                        backgroundColor: lineColor + "33",
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                tooltipFormat: 'HH:mm',
+                                unit: 'minute'
+                            },
+                            ticks: { color: "#f8df9c" },
+                            grid: { color: "rgba(255,255,255,.5)" }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: "#f8df9c" },
+                            grid: { color: "rgba(255,255,255,.5)" }
+                        }
+                    }
+                }
+            });
+
+            new Chart(document.getElementById("BIChart"), {
+                type: "line",
+                data: {
+                    labels: timestamps,
+                    datasets: [{
+                        label: "BI",
+                        data: BI,
+                        borderColor: lineColor,
+                        backgroundColor: lineColor + "33",
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                tooltipFormat: 'HH:mm',
+                                unit: 'minute'
+                            },
+                            ticks: { color: "#f8df9c" },
+                            grid: { color: "rgba(255,255,255,.5)" }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: "#f8df9c" },
+                            grid: { color: "rgba(255,255,255,.5)" }
+                        }
+                    }
+                }
+            });
+        }
+
+        window.onload = () => {
+            fetch('http://127.0.0.1:5000/api/data') // TODO:改回原端口
+                .then(res => res.json())
+                .then(data => {
+                    // console.log("API返回的原始数据:", data); // 打印完整响应
+
+                    let temp = data.temperature;
+                    let humidity = data.humidity;
+                    let L = data.L;
+                    let a = data.a;
+                    let b = data.b;
+                    let DW = data.DW;
+                    let SC = data.SC;
+                    let visData = data.vis;
+                    let nirData = data.nir;
+
+                    // console.log("提取的数据:", {
+                    //   temperature: temp,
+                    //   humidity: humidity,
+                    //   visData: visData,
+                    //   nirData: nirData,
+                    //   L: L,
+                    //   a: a,
+                    //   b: b,
+                    //   DW: DW,
+                    //   SC: SC
+                    // });
+
+                    drawGauges(DW, SC);
+                    document.getElementById('tempText').textContent = `${temp} °C`;
+                    document.getElementById('humidityText').textContent = `${humidity} %`;
+                    document.getElementById('LText').textContent = `${L}`;
+                    document.getElementById('aText').textContent = `${a}`;
+                    document.getElementById('bText').textContent = `${b}`;
+
+                    drawSpectrum("visChart", visData, ["#fbdc6f", "#f1ba1e", "#d6a10e", "#ECA204", "#aa751c", "#8b4303"]);
+                    drawSpectrum("nirChart", nirData, ["#f8df9c", "#fbda4b", "#f0c353", "#e2af1d", "#d6a10e", "#773d03"]);
+                });
+
+            function fetchHistoryData() {
+                fetch('http://127.0.0.1:5000/api/history') // TODO: 改回原端口
+                    .then(res => res.json())
+                    .then(data => {
+                        let timestamps = data.map(d => d.timestamp);
+                        let LB = data.map(d => d.LB);
+                        let BI = data.map(d => d.BI);
+
+                        // 修复时间戳格式
+                        const fixedTimestamps = timestamps.map(t =>
+                            t.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/,
+                                "$1-$2-$3T$4:$5:$6Z")
+                        );
+
+                        console.log("提取的历史数据:", {
+                            timestamps: fixedTimestamps,
+                            LB: LB,
+                            BI: BI
+                        });
+
+                        drawLineCharts(fixedTimestamps, LB, BI);
+                    });
+            }
+
+            fetchHistoryData();
+        };
+    </script>
+</body>
+
+</html>

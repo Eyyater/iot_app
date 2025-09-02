@@ -101,39 +101,53 @@ def api_data():
         print("解析最新数据失败：", e)
         return jsonify({"error": "数据解析失败"}), 500
 
+from datetime import datetime, timedelta
+
 @app.route("/api/history")
 def api_history():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # 获取时间最近的 5 条记录（按 timestamp 降序）
+        # 先多取一些（例如取最近 50 条），以便筛选出间隔大的
         cursor.execute("""
-            SELECT timestamp, "L/B", BI
+            SELECT timestamp, "L/B", BI, id
             FROM sensor_data
             ORDER BY timestamp DESC
-            LIMIT 5
+            LIMIT 50
         """)
         rows = cursor.fetchall()
 
-        # 反转数据（让最早的在前）
-        rows = list(reversed(rows))
+        filtered = []
+        last_time = None
 
-        history = []
         for row in rows:
-            history.append({
-                "timestamp": row["timestamp"],
-                "LB": row["L/B"],
-                "BI": row["BI"]
-            })
+            ts_str = row["timestamp"]
+            
+            # 兼容时间格式："20250705T011804Z"
+            ts = datetime.strptime(ts_str, "%Y%m%dT%H%M%SZ")
+
+            if last_time is None or (last_time - ts) >= timedelta(minutes=1):
+                filtered.append({
+                    "timestamp": ts_str,
+                    "LB": row["L/B"],
+                    "BI": row["BI"],
+                    "id": row["id"]
+                })
+                last_time = ts
+
+            if len(filtered) >= 10:
+                break
+
+        # 反转结果：从早到晚返回（前端好画图）
+        filtered.reverse()
 
         conn.close()
-        return jsonify(history)
+        return jsonify(filtered)
 
     except Exception as e:
         print("获取历史数据失败：", e)
         return jsonify({"error": "无法获取历史数据"}), 500
-
 
 last_timestamp = None
 
